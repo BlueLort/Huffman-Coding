@@ -9,12 +9,14 @@ import java.util.HashMap;
 import java.util.PriorityQueue;
 
 public class HuffmanCompressor {
-
+    //the Compress Algorithm goes here it returns a table that contains Character -> binary value
     public static HashMap<Character,Integer> Compress(ArrayList<Pair<Character,Long>> FrequencyArray){
+        //Convert the frequency array to a MinHeap to use it in the algorithm.
         PriorityQueue<Node> minHeap=ConvertToHeap(FrequencyArray);
         Node root=new Node(null,null,null);
 
         int len=FrequencyArray.size()-1;
+        //notice i will only run n-1 times because in the end i will have the root
         for(int i=0;i<len;i++){
             Node P1=minHeap.poll();
             Node P2=minHeap.poll();

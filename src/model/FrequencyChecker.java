@@ -6,7 +6,7 @@ import javafx.util.Pair;
 import java.util.*;
 
 public class FrequencyChecker {
-
+    //get the frequency of each character and store it in array and return that.
     public static ArrayList<Pair<Character,Long>> GetFrequency(String inputData){
         HashMap<Character,Long> frequencies=new HashMap<>();
         for(int i=0;i<inputData.length();i++){

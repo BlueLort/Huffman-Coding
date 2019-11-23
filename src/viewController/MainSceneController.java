@@ -43,6 +43,7 @@ public class MainSceneController implements Initializable {
     }
     @FXML
     private void chooseFileOnAction(){
+        //Just Make a File Chooser to get Absolute path and set with it the TextField
         FileChooser fileChooser = new FileChooser();
         FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("All Files", "*.*");
         fileChooser.getExtensionFilters().add(extFilter);
@@ -51,11 +52,12 @@ public class MainSceneController implements Initializable {
         File file = fileChooser.showOpenDialog(window);
         if (file != null) {
            tfFilePath.setText(file.getAbsolutePath());
-
         }
     }
     @FXML
     private void compressOnAction(){
+        //Read the File and get the frequency of characters then send it to HuffmanCompression->generate codes
+        //Then FileManager will just write the file again using the generated code to the file.
         String data=FileManager.ReadFile(tfFilePath.getText());
         FileManager.WriteCompressedFile(
                 HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
@@ -66,6 +68,8 @@ public class MainSceneController implements Initializable {
     }
     @FXML
     private void decompressOnAction(){
+        //Read the File in binary format -> first read the header information to get the file content
+        //Destination is defaulted to same file with extension .OH
         String destination=tfFilePath.getText();
         if(tfFilePath.getText().contains(".")){
             destination= tfFilePath.getText().substring(0, tfFilePath.getText().lastIndexOf('.'));

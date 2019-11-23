@@ -7,8 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class FileManager{
+    //nothing special here just normal ascii file reading
         public static String ReadFile(String filePath){
-            // like \test as \t (ie. as a escape sequence)
             File file = new File(filePath);
             try {
 
@@ -25,6 +25,7 @@ public class FileManager{
                 return "";
             }
         }
+        //same as reading i just print text to file.
          public static void WriteFile(String out,String filePath){
         // like \test as \t (ie. as a escape sequence)
         File file = new File(filePath);
@@ -36,6 +37,7 @@ public class FileManager{
             e.printStackTrace();
         }
         }
+        //Reads file in binary and store it in Byte array
         public static ArrayList<Byte> ReadBinaryFile(String filePath){
             ArrayList<Byte> output=new ArrayList<>();
             File file = new File(filePath);
@@ -53,9 +55,13 @@ public class FileManager{
             }
             return output;
         }
+
+        //Decompression algorithm goes here
         public static void DecompressFile(ArrayList<Byte> fileData,String destination){
+                //it might be 0xff or 0x80 depends if its using 2Bytes for table content or 1Byte
+                //Otherwise its not compressed
                 int isCompressed=fileData.get(0);
-                String result="";
+                String result="";//The Output String
                 if(isCompressed==(byte)0xff||isCompressed==(byte)0x80){
                     boolean doubleByte=isCompressed==0xff;
                     byte nChars=fileData.get(1);
@@ -63,6 +69,7 @@ public class FileManager{
                     HashMap<Integer,Character> huffmanTable =GetDecompressionTable(fileData,nChars,doubleByte);
                     int charCounter=0;
                     int keyContainer=0;
+                    //make the start of data depends if using Double or Single Byte data for the huffmanTable
                     int start=doubleByte?(nChars*3)+5+1:(nChars*2)+5+1;
                     for(int i=start;i<fileData.size();i++){
                         int buffer=ReverseBitsByte(fileData.get(i),8);
@@ -92,6 +99,7 @@ public class FileManager{
         }
         private static HashMap<Integer,Character> GetDecompressionTable(ArrayList<Byte> fileData,int nChars,boolean doubleByte){
             HashMap<Integer,Character> huffmanTable=new HashMap<>();
+            //make the end of data depends if using Double or Single Byte data for the huffmanTable
             int endLoc=doubleByte?(nChars*3)+5:(nChars*2)+5;
             int step=doubleByte?3:2;
             for(int i=6;i<endLoc;i+=step){
@@ -110,7 +118,7 @@ public class FileManager{
             try {
                 //HEADER DATA             8BITS                8BITS             32BITS
                 ///contain is  (compressed&dictionarySize) + numberOfChars + File Length
-                //THEN 8BITS CHAR 16BITS BINARY_VALUE
+                //THEN 8BITS CHAR 8BITS/16BITS BINARY_VALUE -> Depends if single or double byte data
                 //if compressed left most bit is 1
                 //if not compressed left most bit is 0
                 FileOutputStream fout=new FileOutputStream(file);
@@ -139,7 +147,7 @@ public class FileManager{
                     output.add((byte) (len));
 
                     for (Map.Entry<Character, Integer> ite : HuffmanTable.entrySet()) {
-                        //  8BITS CHARACTER          16BITS VALUE
+                        //  8BITS CHARACTER          8/16BITS VALUE
                         output.add(ite.getKey().toString().getBytes()[0]);
                         if(doubleByte)output.add((byte) (ite.getValue() >> 8));
                         output.add(ite.getValue().byteValue());
