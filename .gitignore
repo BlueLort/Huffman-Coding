@@ -1,0 +1,7 @@
+#Dir
+.idea/
+out/
+#Files
+input.txt
+input.txtOH
+*.iml
