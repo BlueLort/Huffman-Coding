@@ -1,6 +1,7 @@
 package model;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -12,14 +13,13 @@ public class FileManager{
             File file = new File(filePath);
             try {
 
-                BufferedReader br = new BufferedReader(new java.io.FileReader(file));
-                String st="";
-                String line;
-                while((line=br.readLine())!=null){
-                    st+=line;
+                StringBuilder stringBuffer = new StringBuilder();
+                Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8);
+                char[] buff = new char[512];
+                for (int charsRead; (charsRead = reader.read(buff)) != -1; ) {
+                    stringBuffer.append(buff, 0, charsRead);
                 }
-                br.close();
-                return st;
+                return stringBuffer.toString();
             }catch (Exception e) {
                 e.printStackTrace();
                 return "";
