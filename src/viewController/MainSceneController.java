@@ -59,12 +59,11 @@ public class MainSceneController implements Initializable {
         //Read the File and get the frequency of characters then send it to HuffmanCompression->generate codes
         //Then FileManager will just write the file again using the generated code to the file.
         String data=FileManager.ReadFile(tfFilePath.getText());
-        HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data));
-       // FileManager.WriteCompressedFile(
-       //         HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
-        //        ,data
-        //        ,tfFilePath.getText()+"OH"//OH -> OMAR HARRAZ
-       // );
+        FileManager.WriteCompressedFile(
+                HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
+                ,data
+                ,tfFilePath.getText()+"OH"//OH -> OMAR HARRAZ
+        );
 
     }
     @FXML
