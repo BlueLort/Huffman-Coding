@@ -10,7 +10,7 @@ import java.util.PriorityQueue;
 
 public class HuffmanCompressor {
     //the Compress Algorithm goes here it returns a table that contains Character -> binary value
-    public static HashMap<Character,Integer> Compress(ArrayList<Pair<Character,Long>> FrequencyArray){
+    public static HashMap<Character,String> Compress(ArrayList<Pair<Character,Long>> FrequencyArray){
         //Convert the frequency array to a MinHeap to use it in the algorithm.
         PriorityQueue<Node> minHeap=ConvertToHeap(FrequencyArray);
         Node root=new Node(null,null,null);
@@ -24,8 +24,9 @@ public class HuffmanCompressor {
             root=Parent;
             minHeap.add(Parent);
         }
-        System.out.println(GetBinaryTable(root));
-        return GetBinaryTable(root);
+        HashMap<Character,String> dictionary=GetBinaryTable(root);
+        System.out.println(dictionary);
+        return dictionary;
     }
     private static PriorityQueue<Node> ConvertToHeap(ArrayList<Pair<Character,Long>> FrequencyArray){
         PriorityQueue<Node> minHeap=new PriorityQueue<>(new HuffmanComparator());
@@ -40,19 +41,19 @@ public class HuffmanCompressor {
             return p1.val.getValue().intValue()-p2.val.getValue().intValue();
         }
     }
-    private static HashMap<Character,Integer> GetBinaryTable(Node HuffmanTree){
-        HashMap<Character,Integer> table=new HashMap<>();
-        TraverseTree(HuffmanTree.right,table,1);
-        TraverseTree(HuffmanTree.left,table,0);
+    private static HashMap<Character,String> GetBinaryTable(Node HuffmanTree){
+        HashMap<Character,String> table=new HashMap<>();
+        TraverseTree(HuffmanTree.right,table,"1");
+        TraverseTree(HuffmanTree.left,table,"0");
         return table;
     }
-    private static void TraverseTree(Node node,HashMap<Character,Integer> table,Integer binaryVal){
+    private static void TraverseTree(Node node,HashMap<Character,String> table,String binaryVal){
             if(node==null)return;
             if(node.val.getKey()!=null){
                 table.put(node.val.getKey(),binaryVal);
             }
-            TraverseTree(node.right,table,binaryVal<<1 | 1);
-            TraverseTree(node.left,table,binaryVal<<1);
+            TraverseTree(node.right,table,binaryVal+"1");
+            TraverseTree(node.left,table,binaryVal+"0");
     }
 }
 
