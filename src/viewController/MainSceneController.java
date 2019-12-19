@@ -58,7 +58,8 @@ public class MainSceneController implements Initializable {
     private void compressOnAction(){
         //Read the File and get the frequency of characters then send it to HuffmanCompression->generate codes
         //Then FileManager will just write the file again using the generated code to the file.
-        String data=FileManager.ReadFile(tfFilePath.getText());
+       // String data=FileManager.ReadFile(tfFilePath.getText());
+        byte[] data=FileManager.ReadBinaryFile(tfFilePath.getText());
         FileManager.WriteCompressedFile(
                 HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
                 ,data

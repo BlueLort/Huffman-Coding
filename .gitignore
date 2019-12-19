@@ -1,8 +1,10 @@
 #Dir
 .idea/
+src/utility
 out/
 #Files
 input.txt
 input.txtOH
 input.OH
+red.pngOH
 *.iml

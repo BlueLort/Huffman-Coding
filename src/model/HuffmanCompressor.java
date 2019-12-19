@@ -26,6 +26,8 @@ public class HuffmanCompressor {
         }
         HashMap<Character,String> dictionary=GetBinaryTable(root);
         System.out.println(dictionary);
+        System.out.print("Number of leaves:");
+        System.out.println(dictionary.size());
         return dictionary;
     }
     private static PriorityQueue<Node> ConvertToHeap(ArrayList<Pair<Character,Long>> FrequencyArray){

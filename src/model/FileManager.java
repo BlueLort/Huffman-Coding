@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
-
+//TODO USE ONLY BYTE ARRAYS
 public class FileManager{
     //nothing special here just normal ascii file reading
         public static String ReadFile(String filePath){
@@ -30,9 +30,11 @@ public class FileManager{
         // like \test as \t (ie. as a escape sequence)
         File file = new File(filePath);
         try {
-            BufferedWriter bw = new BufferedWriter(new java.io.FileWriter(file));
-            bw.write(out);
-            bw.close();
+            FileOutputStream fout=new FileOutputStream(file);
+            for(int i=0;i<out.length();i++){
+                fout.write(out.charAt(i)&0xff);
+            }
+            fout.close();
         }catch (Exception e) {
             e.printStackTrace();
         }
@@ -65,15 +67,19 @@ public class FileManager{
         public static void DecompressFile(byte[] fileData,String destination){
                 //it might be 0xff or 0x80 depends if its using 2Bytes for table content or 1Byte
                 //Otherwise its not compressed
-                int isCompressed=fileData[0];
+                //Note &<hexNumber> is to cast byte values avoiding the negative values.
+                int isCompressed=fileData[0]&0xff;
                 String result="";//The Output String
-                if(isCompressed==(byte)0xff||isCompressed==(byte)0x80){
+                if(isCompressed==0xff||isCompressed==0x80){
                     boolean doubleByte=isCompressed==0xff;
-                    byte nChars=fileData[1];
-                    int fileLength=(fileData[2]<<24 | fileData[3]<<16 | fileData[4]<<8 | fileData[5]);
+                    short nChars=(short)((fileData[1]&0xff)+1);
+                    long fileLength=((short)(fileData[2]<<24&0xff000000) | (short)(fileData[3]<<16&0xff0000) | (short)(fileData[4]<<8&0xff00) | (short)(fileData[5]&0xff));
                     BitSet bs=BitSet.valueOf(fileData);
                     HashMap<String,Character> huffmanTable =GetDecompressionTable(fileData,bs,nChars,doubleByte);
-                    int charCounter=0;
+                    System.out.println(huffmanTable);
+                    System.out.print("Number of leaves:");
+                    System.out.println(huffmanTable.size());
+                    long charCounter=0;
                     //make the start of data depends if using Double or Single Byte data for the huffmanTable
                     int start=doubleByte?(nChars*3)+5+1:(nChars*2)+5+1;
                     start*=8;
@@ -86,12 +92,12 @@ public class FileManager{
                             result += huffmanTable.get(codeBuffer);
                             codeBuffer="";
                             charCounter++;
+                            if (charCounter == fileLength) break;
                         }
-                        if (charCounter == fileLength) break;
                     }
                 }else{
                     for(int i=1;i<fileData.length;i++){
-                        result+=(char)((byte)fileData[i]);
+                        result+=(char)(fileData[i]);
                     }
                 }
                 System.out.println(result);
@@ -105,11 +111,16 @@ public class FileManager{
 
             for(int i=6;i<endLoc;i+=step){
                 if(doubleByte){
-                    String code=getCode(fileDataBits,(i+1)*8,16);
-                    huffmanTable.put(code,Character.toChars(fileData[i])[0]);
+                    String code=getCode(fileDataBits,(i+1)*8,8);
+                    if(code.equals("NO")){
+                        code=getCode(fileDataBits,(i+2)*8,8);
+                    }else{
+                        code+=getCodeDirect(fileDataBits,(i+2)*8,8);
+                    }
+                    huffmanTable.put(code,Character.toChars(fileData[i]&0xff)[0]);
                 }else{
                     String code=getCode(fileDataBits,(i+1)*8,8);
-                    huffmanTable.put(code,Character.toChars(fileData[i])[0]);
+                    huffmanTable.put(code,Character.toChars(fileData[i]&0xff)[0]);
                 }
 
             }
@@ -126,16 +137,20 @@ public class FileManager{
                         break;
                     }
                 }
+                if(startLoc==-1)return "NO";
                 for (int j = startLoc, offset = 0; offset < range;offset++) {
-                    if (bs.get(j - offset)) {
-                        code += "1";
-                    } else {
-                        code += "0";
-                    }
+                     code+=bs.get(j - offset)?"1":"0";
                 }
                 return code;
         }
-        public static void WriteCompressedFile(HashMap<Character,String> HuffmanTable,String input,String path){
+    private static String getCodeDirect(BitSet bs,int start,int range) {
+        String code = "";
+        for (int j = start+range-1, offset = 0; offset < range;offset++) {
+            code+=bs.get(j-offset)?"1":"0";
+        }
+        return code;
+    }
+        public static void WriteCompressedFile(HashMap<Character,String> HuffmanTable,byte[] input,String path){
             File file=new File(path);
             try {
                 //HEADER DATA             8BITS                8BITS             32BITS
@@ -149,21 +164,20 @@ public class FileManager{
                 if(NeedMoreBytes(HuffmanTable)){
                     doubleBytes=true;
                 }
-
-                int lenDiff = input.length()-(1+1+4+HuffmanTable.size()*(doubleBytes?3:2));
+                int lenDiff = input.length-(1+1+4+HuffmanTable.size()*(doubleBytes?3:2));
                 if(lenDiff<0){
                     int isCompressed = 0x00;
                     output.add((byte) isCompressed);
-                    for (Byte b:input.getBytes()){
+                    for (Byte b:input){
                         output.add(b);
                     }
                 }else {
                     int isCompressed = 128;
                     if(doubleBytes)isCompressed=0xff;//0xff only if it use 2 bytes for tables.
                     output.add((byte) isCompressed);
-                    int numChars = HuffmanTable.size();
+                    int numChars = HuffmanTable.size()-1;
                     output.add((byte) numChars);
-                    int len = input.length();
+                    int len = input.length;
                     output.add((byte) (len >> 24));
                     output.add((byte) (len >> 16));
                     output.add((byte) (len >> 8));
@@ -172,12 +186,13 @@ public class FileManager{
 
                     for (Map.Entry<Character,String> ite : HuffmanTable.entrySet()) {
                         //  8BITS CHARACTER          8/16BITS VALUE
-                        output.add(ite.getKey().toString().getBytes()[0]);
+                        output.add((byte)(ite.getKey()&0xff));
                         if(doubleBytes){
-                            short val=(short)(Short.parseShort(ite.getValue(),2)>>8);
+                            short val=Short.parseShort(ite.getValue(),2);
                             val |=(2<<ite.getValue().length()-1);
-                            output.add((byte)val);
-                            output.add((byte)Short.parseShort(ite.getValue(),2));
+                            output.add((byte)((val&0xff00)>>8));
+                            output.add((byte)(val&0xff));
+
                         }else{
                             short val=Short.parseShort(ite.getValue(),2);
                             val |=(2<<ite.getValue().length()-1);
@@ -189,14 +204,15 @@ public class FileManager{
                     BitSet bs=new BitSet();
                     int bitIndex = 0;
                     for (int i = 0; i < len; i++) {
-                        String binaryValue=HuffmanTable.get(input.charAt(i));
-                        for(int j=binaryValue.length()-1;j>=0;j--){
+                        String binaryValue=HuffmanTable.get((char)(input[i]&0xff));
+                        for(int j=0;j<binaryValue.length();j++){
                             if(binaryValue.charAt(j)=='1')
                                 bs.set(bitIndex);
                             bitIndex++;
                         }
 
                     }
+                    bs.set(bitIndex);//if end of bytes had only 0s code
                     byte[] bytes=bs.toByteArray();
                     for(byte b:bytes){
                         output.add(b);
@@ -206,21 +222,24 @@ public class FileManager{
                         fout.write(b);
                     }
 
-
-
+                    fout.close();
             }catch (Exception e){
                 e.printStackTrace();
             }
         }
          private static boolean NeedMoreBytes(HashMap<Character,String> HuffmanTable){
              int max=-1;
+             int min=0x7fffffff;
 
              for(Map.Entry ite:HuffmanTable.entrySet()){
                  if(max<ite.getValue().toString().length()){
                      max=ite.getValue().toString().length();
                  }
+                 if(min>ite.getValue().toString().length()){
+                     min=ite.getValue().toString().length();
+                 }
              }
-
+             System.out.printf("nBits min:%d , max:%d\n",min,max);
              return max>8;
          }
 

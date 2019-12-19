@@ -7,14 +7,14 @@ import java.util.*;
 
 public class FrequencyChecker {
     //get the frequency of each character and store it in array and return that.
-    public static ArrayList<Pair<Character,Long>> GetFrequency(String inputData){
+    public static ArrayList<Pair<Character,Long>> GetFrequency(byte[] inputData){
         HashMap<Character,Long> frequencies=new HashMap<>();
-        for(int i=0;i<inputData.length();i++){
-            if(!frequencies.containsKey(inputData.charAt(i))){
-                frequencies.put(inputData.charAt(i),1L);
+        for(int i=0;i<inputData.length;i++){
+            if(!frequencies.containsKey((char)(inputData[i]&0xff))){
+                frequencies.put((char)(inputData[i]&0xff),1L);
             }else{
-                long lastVal=frequencies.get(inputData.charAt(i));
-                frequencies.replace(inputData.charAt(i),lastVal+1L);
+                long lastVal=frequencies.get((char)(inputData[i]&0xff));
+                frequencies.replace((char)(inputData[i]&0xff),lastVal+1L);
             }
 
         }
