@@ -7,7 +7,11 @@ import java.io.*;
 import java.util.ArrayList;
 
 public class FileManager{
-    public static synchronized void clearFile(String destination){
+
+    public static synchronized void CreateFolder(String destination){
+        new File(destination).mkdirs();
+    }
+    public static synchronized void ClearFile(String destination){
         try {
             new PrintWriter(destination).close();
         }catch (Exception e) {

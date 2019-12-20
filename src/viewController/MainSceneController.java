@@ -140,7 +140,7 @@ public class MainSceneController implements Initializable {
 
                 //TODO UPDATE PROGRESS OF TASK
 
-                FileManager.clearFile(destination);
+                FileManager.ClearFile(destination);
                 writeFolder(CFOLDI,destination);
 
                 return null;
@@ -166,7 +166,7 @@ public class MainSceneController implements Initializable {
                     FileManager.WriteDecompressedFile(DFI, path);
                 }else{
                   DecompressedFolderInfo DFOLDI = DecompressionHandler.DecompressFolder(data,0);
-                  writeDecompressedFolder(DFOLDI);
+                  writeDecompressedFolder(DFOLDI,getFilePath(tfFilePath.getText()));
 
                 }
                 return null;
@@ -179,7 +179,15 @@ public class MainSceneController implements Initializable {
         bar.progressProperty().bind(task.progressProperty());
         new Thread(task).start();
     }
-    private void writeDecompressedFolder(DecompressedFolderInfo DFOLDI){
+    private void writeDecompressedFolder(DecompressedFolderInfo DFOLDI,String destination){
+        String currentPath=destination+DFOLDI.folderName+'/';
+        FileManager.CreateFolder(currentPath);
+        for(DecompressedFileInfo DFI:DFOLDI.DFIs){
+            FileManager.WriteDecompressedFile(DFI,currentPath);
+        }
+        for(DecompressedFolderInfo D:DFOLDI.DFOLDIs){
+            writeDecompressedFolder(D,currentPath);
+        }
 
     }
 

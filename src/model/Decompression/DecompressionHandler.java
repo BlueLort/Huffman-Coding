@@ -136,7 +136,6 @@ public class DecompressionHandler {
         }
         return code;
     }
-
     private static String getDecompressedData(BitSet bs, HashMap<String,Character>  huffmanTable,boolean doubleByte,short nChars,long fileLength,int startLoc,int endLoc){
         String res="";
         long charCounter=0;
