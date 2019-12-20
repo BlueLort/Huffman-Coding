@@ -26,6 +26,7 @@ import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.ResourceBundle;
 
 
@@ -114,6 +115,7 @@ public class MainSceneController implements Initializable {
                         HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
                         , data
                         , fileName
+                        ,true
                 );
                 didCompress=CFI.isCompressed;
                 if(didCompress) {
@@ -161,7 +163,8 @@ public class MainSceneController implements Initializable {
             @Override public Void call() {
                 byte[] data=FileManager.ReadBinaryFile(tfFilePath.getText());
                 if(data[0]!=0x0f) {
-                    DecompressedFileInfo DFI = DecompressionHandler.DecompressFile(data);
+                    BitSet bs=BitSet.valueOf(data);
+                    DecompressedFileInfo DFI = DecompressionHandler.DecompressFile(data,bs,true);
                     String path = getFilePath(tfFilePath.getText());
                     FileManager.WriteDecompressedFile(DFI, path);
                 }else{
@@ -213,14 +216,11 @@ public class MainSceneController implements Initializable {
                                 HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
                                 , data
                                 , fileName
+                                ,false
                         );
                         CFOLDI.CFIs.add(CFI);
                         return null;
                     }
-                    @Override protected void succeeded() {
-                        super.succeeded();
-                    }
-
                 };
                 Thread t= new Thread(task);
                 t.start();

@@ -2,6 +2,7 @@ package model;
 
 import javafx.scene.Parent;
 import javafx.util.Pair;
+import model.Decompression.DecompressionHandler;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -28,6 +29,7 @@ public class HuffmanCompressor {
         System.out.println(dictionary);
         System.out.print("Number of leaves:");
         System.out.println(dictionary.size());
+        //DecompressionHandler.debug=dictionary;
         return dictionary;
     }
     private static PriorityQueue<Node> ConvertToHeap(ArrayList<Pair<Character,Long>> FrequencyArray){

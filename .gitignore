@@ -2,12 +2,9 @@
 .idea/
 src/utility
 out/
-fofo/
 #Files
-fofo.OH
 in.txt
-in.txtOH
 in.OH
-red.pngOH
-red.OH
+Test.OH
+
 *.iml
