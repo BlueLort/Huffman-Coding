@@ -1,6 +1,7 @@
 #Dir
 .idea/
 src/utility
+src/META-INF
 out/
 #Files
 in.txt
