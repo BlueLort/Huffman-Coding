@@ -76,7 +76,7 @@ public class DecompressionHandler {
             fileName=getFileName(fileData,fileNameLen,start);
 
             HashMap<String,Character> huffmanTable =GetDecompressionTable(fileData,fileNameLen,bs,nChars,doubleByte,start);
-            
+
             /** FOR DEBUGGING THE HUFFMAN TREE MUST UNCOMMENT HUFFMAN COMPRESSOR EQUALITY AS WELL **/
        /*     for(Map.Entry e:huffmanTable.entrySet()){
                 System.out.printf("%s %s %s\n",e.getValue(),e.getKey(),debug.get(e.getValue()));
@@ -93,7 +93,7 @@ public class DecompressionHandler {
             for(int i=2+start,offset=0;offset<len;offset++){
                 fileName+=(char)(fileData[i+offset]&0xff);
             }
-            for(int i=3+len+start;i<fileData.length;i++){
+            for(int i=2+len+start;i<fileData.length;i++){
                 data+=(char)(fileData[i]);
             }
             byteReached=4+len+fileData.length+start;

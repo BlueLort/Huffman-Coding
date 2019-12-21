@@ -1,5 +1,7 @@
 package model.Compression;
 
+import javafx.util.Pair;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.security.PublicKey;
@@ -166,10 +168,26 @@ public class CompressionHandler {
         return max>=8;
     }
     private static boolean isCompressable(int inputLen,int fileNameLen,HashMap<Character,String>  HuffmanTable,boolean doubleBytes){
-        //TODO IMPROVE THIS
-        return inputLen-(7+(HuffmanTable.size()*(doubleBytes?3:2))+fileNameLen) >0;
+        //TODO IMPROVE THIS MORE IF YOU CAN
+        return (inputLen*8)
+                -
+                (((7+(HuffmanTable.size()*(doubleBytes?3:2))+fileNameLen)*8)
+                +
+                (getAvgBits(HuffmanTable)*inputLen)) >0;
     }
-
+    private static int getAvgBits(HashMap<Character,String>  HuffmanTable){
+        int min=0x7fffffff;
+        int max=-1;
+        for(Map.Entry<Character,String> e:HuffmanTable.entrySet()){
+            if(e.getValue().length()>max){
+                max=e.getValue().length();
+            }
+            if(e.getValue().length()<min){
+                min=e.getValue().length();
+            }
+        }
+        return ((min+max)/2)+1;
+    }
     private static void addDicationary(ArrayList<Byte> out,HashMap<Character,String>  HuffmanTable,boolean doubleBytes){
         for (Map.Entry<Character,String> ite : HuffmanTable.entrySet()) {
             out.add((byte)(ite.getKey()&0xff));
