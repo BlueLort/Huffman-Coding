@@ -5,11 +5,9 @@ import java.util.ArrayList;
 public class DecompressedFileInfo {
     public String fileName;
     public String fileData;
-    public int maxReach;
-    public DecompressedFileInfo(String fileName, String fileData,int maxReach){
+    public DecompressedFileInfo(String fileName, String fileData){
         this.fileName=fileName;
         this.fileData=fileData;
-        this.maxReach=maxReach;
     }
 
 }

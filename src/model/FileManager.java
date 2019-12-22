@@ -95,6 +95,30 @@ public class FileManager{
             }
             return arr;
         }
+    public static synchronized byte[] ReadBinaryFiles(ArrayList<String> filePaths){
+        ArrayList<Byte> output=new ArrayList<>();
+        for(String path:filePaths) {
+            File file = new File(path);
+            try {
+
+                FileInputStream fin = new FileInputStream(file);
+                int data;
+                while ((data = fin.read()) != -1) {
+                    output.add((byte) data);
+                }
+                fin.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+
+            }
+        }
+        //using byte arrays to make it easier to convert to other datatypes like BitSet
+        byte[] arr=new byte[output.size()];
+        for(int i=0;i<output.size();i++){
+            arr[i]=output.get(i);
+        }
+        return arr;
+    }
 
 }
 

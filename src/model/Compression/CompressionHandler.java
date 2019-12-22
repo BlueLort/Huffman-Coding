@@ -1,6 +1,8 @@
 package model.Compression;
 
 import javafx.util.Pair;
+import model.CompressionInfo;
+import model.FolderCompressionInfo;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -15,9 +17,16 @@ public class CompressionHandler {
     /**Header DATA & FILE DATA INFORMATION
      * -------------------------------------
      * 8 BITS COMPRESSION TYPE
-     *   0xff COMPRESSED DOUBLE BYTE FOR CODES
-     *   0x80 COMPRESSED SIGNLE BYTE FOR CODES
-     *   0x00 NOT COMPRESSED
+     *   0xfd COMPRESSED 4 BYTES FOR CODES
+     *   0xfc COMPRESSED 3 BYTES FOR CODES
+     *   0xfb COMPRESSED 2 BYTES FOR CODES
+     *   0xfa COMPRESSED 1 BYTE FOR CODES
+     *
+     *
+     *   0x0f COMPRESSED AS FOLDER
+     *   0xf0 COMPRESSED AS FILE [FOLDER COMPRESSION]
+     *   0x00 HUFFMAN TREE [FOLDER COMPRESSION]
+     *
      *
      * <IF COMPRESSED FOR FOLDER>
      * 32 BITS NUMBER OF BYTES ALLOCATED [ASSUMING MAX FILE IS 2^32 BITS] 0.5GB file
@@ -27,88 +36,99 @@ public class CompressionHandler {
      *
      * 32 BITS ORIGINAL FILE LENGTH [BIG ENDIAN]
      *
-     * RECURRING FOR $(nc) 8BITS <Character> 8/16BITS <Code>
+     * RE FOR $(nc) 8BITS <Character> 8/16BITS <Code>
      *
      * 8 BITS FILE NAME LENGTH
      *
-     * FILE NAME DATA COMPRESSED
+     * FILE NAME
      *
      * DATA COMPRESSED
      *
      */
     public static  CompressedFileInfo getCompressedFile(
             HashMap<Character,String> HuffmanTable
-            , byte[] input
+            ,byte[] input
             , String fileName
-            , boolean isFile
-            ){
-            CompressedFileInfo CFI;
-            boolean doubleBytes=NeedMoreBytes(HuffmanTable);
-            boolean isCompressable=isCompressable(input.length,fileName.length(),HuffmanTable,doubleBytes);
-            if(isCompressable==false){
-                CFI=getFileNotCompressed(input,fileName,isFile);
-            }else {
-                CFI=getFileCompressed(HuffmanTable,input,fileName,doubleBytes,isFile);
-            }
-
-        return CFI;
-
-    }
-    private static CompressedFileInfo getFileNotCompressed(
-             byte[] input
-            , String fileName
-             ,boolean isFile
-
-    ) {
-        //Rejction for files is to check CFI.isCompressed
-        //Assuming that i will never reject folder compression request
-        ArrayList<Byte> headerInfo=new ArrayList<>();
+    ){
         CompressedFileInfo CFI;
-        int isCompressed = 0x00;
-        headerInfo.add((byte) isCompressed);
-        if(isFile==false){
-            //2bytes compressed , filename len , 4bytes nBytes
-            int len=6+fileName.length()+input.length;
-            headerInfo.add((byte)(len>>24));
-            headerInfo.add((byte)(len>>16));
-            headerInfo.add((byte)(len>>8));
-            headerInfo.add((byte)(len));
-        }
-
-        headerInfo.add((byte)((fileName.length()-1)&0xff));
-        addFileNameData(headerInfo,fileName);
-        CFI=new CompressedFileInfo();
-        CFI.headerData=headerInfo;
-        if(isFile==false) {//can't reject folder requests
-            CFI.fileData = new byte[input.length];
-            for (int i = 0; i < input.length; i++) {
-                CFI.fileData[i] = input[i];
-            }
-        }
+        CFI=getFileCompressed(HuffmanTable,input,fileName);
         return CFI;
+
     }
     private static CompressedFileInfo getFileCompressed(
             HashMap<Character,String> HuffmanTable
             ,byte[] input
             , String fileName
-            ,boolean doubleBytes
-            ,boolean isFile
     ) {
 
         ArrayList<Byte> headerInfo=new ArrayList<>();
         CompressedFileInfo CFI;
-        int isCompressed = 128;
-        if(doubleBytes)isCompressed=0xff;
-        headerInfo.add((byte) isCompressed);
-        if(isFile==false){
-            //placeholders to put number of bytes later
-            headerInfo.add((byte)0);
-            headerInfo.add((byte)0);
-            headerInfo.add((byte)0);
-            headerInfo.add((byte)0);
-        }
+        int compressionFormat = 0x0f0;//0xfa to 0xfd
 
+        headerInfo.add((byte)compressionFormat);
+        //4 bytes to store number of bytes added.
+        headerInfo.add((byte) (0));
+        headerInfo.add((byte) (0));
+        headerInfo.add((byte) (0));
+        headerInfo.add((byte) (0));
 
+        int len = input.length;
+        headerInfo.add((byte) (len >> 24));
+        headerInfo.add((byte) (len >> 16));
+        headerInfo.add((byte) (len >> 8));
+        headerInfo.add((byte) (len));
+
+        headerInfo.add((byte)((fileName.length()-1)&0xff));
+        addFileNameData(headerInfo,fileName);
+
+        BitSet bs=new BitSet();
+        int bitIndex = 0;
+        bitIndex = addFileData(bs,bitIndex,input,HuffmanTable);
+        /**
+         * say f has code 000
+         * and end of text had ....fffff
+         * so i wont set any bit in bitset so that would lead to less number of bytes given by the BitSet
+         * set last bitindex i reached to ensure that won't happen.
+         */
+        bs.set(bitIndex);
+
+        byte[] fileData=bs.toByteArray();
+
+        long byteReached=headerInfo.size()+fileData.length;
+
+        headerInfo.set(1,(byte) (byteReached >> 24));
+        headerInfo.set(2,(byte) (byteReached >> 16));
+        headerInfo.set(3,(byte) (byteReached >> 8));
+        headerInfo.set(4,(byte) (byteReached));
+
+        CFI=new CompressedFileInfo(headerInfo,fileData);
+
+        return CFI;
+    }
+
+    public static  CompressedFileInfo getCompressedFile(
+            CompressionInfo CI
+            , byte[] input
+            ){
+            CompressedFileInfo CFI;
+            CFI=getFileCompressed(CI.huffmanCodes,input,CI.fileName,CI.codeFormat);
+
+        return CFI;
+
+    }
+
+    private static CompressedFileInfo getFileCompressed(
+            HashMap<Character,String> HuffmanTable
+            ,byte[] input
+            , String fileName
+            ,int codeFormat
+    ) {
+
+        ArrayList<Byte> headerInfo=new ArrayList<>();
+        CompressedFileInfo CFI;
+        int compressionFormat = 0x0f9+codeFormat;//0xfa to 0xfd
+
+        headerInfo.add((byte)compressionFormat);
         /**
          * 8bits max is 255 so if i have huffman size of 256[in binary files happen]
          * so i just decrement and increment on decompression
@@ -125,7 +145,7 @@ public class CompressionHandler {
         headerInfo.add((byte)((fileName.length()-1)&0xff));
         addFileNameData(headerInfo,fileName);
 
-        addDicationary(headerInfo,HuffmanTable,doubleBytes);
+        addDicationary(headerInfo,HuffmanTable,codeFormat);
 
         BitSet bs=new BitSet();
         int bitIndex = 0;
@@ -139,68 +159,18 @@ public class CompressionHandler {
         bs.set(bitIndex);
 
         byte[] fileData=bs.toByteArray();
-        if(isFile==false){
-
-            int nBytes=headerInfo.size()+fileData.length;
-            headerInfo.set(1,(byte)(nBytes>>24));
-            headerInfo.set(2,(byte)(nBytes>>16));
-            headerInfo.set(3,(byte)(nBytes>>8));
-            headerInfo.set(4,(byte)(nBytes));
-        }
-
 
         CFI=new CompressedFileInfo(headerInfo,fileData);
         return CFI;
     }
-    private static boolean NeedMoreBytes(HashMap<Character,String> HuffmanTable){
-        int max=-1;
-        int min=0x7fffffff;
-
-        for(Map.Entry ite:HuffmanTable.entrySet()){
-            if(max<ite.getValue().toString().length()){
-                max=ite.getValue().toString().length();
-            }
-            if(min>ite.getValue().toString().length()){
-                min=ite.getValue().toString().length();
-            }
-        }
-        System.out.printf("nBits min:%d , max:%d\n",min,max);
-        return max>=8;
-    }
-    private static boolean isCompressable(int inputLen,int fileNameLen,HashMap<Character,String>  HuffmanTable,boolean doubleBytes){
-        //TODO IMPROVE THIS MORE IF YOU CAN
-        return (inputLen*8)
-                -
-                (((7+(HuffmanTable.size()*(doubleBytes?3:2))+fileNameLen)*8)
-                +
-                (getAvgBits(HuffmanTable)*inputLen)) >0;
-    }
-    private static int getAvgBits(HashMap<Character,String>  HuffmanTable){
-        int min=0x7fffffff;
-        int max=-1;
-        for(Map.Entry<Character,String> e:HuffmanTable.entrySet()){
-            if(e.getValue().length()>max){
-                max=e.getValue().length();
-            }
-            if(e.getValue().length()<min){
-                min=e.getValue().length();
-            }
-        }
-        return ((min+max)/2)+1;
-    }
-    private static void addDicationary(ArrayList<Byte> out,HashMap<Character,String>  HuffmanTable,boolean doubleBytes){
+    private static void addDicationary(ArrayList<Byte> out,HashMap<Character,String>  HuffmanTable,int codeFormat){
         for (Map.Entry<Character,String> ite : HuffmanTable.entrySet()) {
             out.add((byte)(ite.getKey()&0xff));
-            if(doubleBytes){
-                short val=Short.parseShort(ite.getValue(),2);
-                val |=(2<<ite.getValue().length()-1);
-                out.add((byte)((val&0xff00)>>8));
-                out.add((byte)(val&0xff));
-
-            }else{
-                short val=Short.parseShort(ite.getValue(),2);
-                val |=(2<<ite.getValue().length()-1);
-                out.add((byte)val);
+            long val;
+            val=Long.parseLong(ite.getValue(),2);
+            val |=(2<<(ite.getValue().length()-1));
+            for(int i=0;i<codeFormat;i++){
+                out.add((byte)((val>>(i*8))&0xff));
             }
         }
     }

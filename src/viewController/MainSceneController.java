@@ -10,15 +10,13 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import model.*;
 import model.Compression.CompressedFileInfo;
 import model.Compression.CompressedFolderInfo;
 import model.Compression.CompressionHandler;
 import model.Decompression.DecompressedFileInfo;
 import model.Decompression.DecompressedFolderInfo;
 import model.Decompression.DecompressionHandler;
-import model.FileManager;
-import model.FrequencyChecker;
-import model.HuffmanCompressor;
 import javafx.concurrent.Task;
 
 import javax.print.attribute.standard.Finishings;
@@ -27,6 +25,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 
@@ -55,7 +54,7 @@ public class MainSceneController implements Initializable {
     private CheckBox cbEdit;
     @FXML
     private TextField tfFilePath;
-    private int nFiles=0;
+    private long startTime;
     public void setStage(Stage PrimaryStage){
         window = PrimaryStage;
     }
@@ -98,7 +97,6 @@ public class MainSceneController implements Initializable {
             if(isFile) {
                 compressFileTask(destination);
             }else{
-                nFiles=0;
                 compressFolderTask(destination);
             }
         }
@@ -111,15 +109,15 @@ public class MainSceneController implements Initializable {
             @Override public Void call() {
                 String fileName=getFileName(tfFilePath.getText());
                 byte[] data=FileManager.ReadBinaryFile(tfFilePath.getText());
-                CompressedFileInfo CFI = CompressionHandler.getCompressedFile(
-                        HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
-                        , data
-                        , fileName
-                        ,true
-                );
-                didCompress=CFI.isCompressed;
+                CompressionInfo CI= HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data),fileName);
+                CI.compressionTest();
+                didCompress=CI.isCompressible;
                 if(didCompress) {
-                    FileManager.WriteCompressedFile(CFI, destination);
+                    CompressedFileInfo CFI = CompressionHandler.getCompressedFile(
+                            CI
+                            , data
+                    );
+                    FileManager.WriteCompressedFile(CFI,destination);
                 }
                 return null;
             }
@@ -130,6 +128,13 @@ public class MainSceneController implements Initializable {
                     lmessage.setText("Compression Rejected !!");
                 }
             }
+            @Override protected void failed() {
+                super.failed();
+                grantUse();
+                if(didCompress==false){
+                    lmessage.setText("Compression Failed !!");
+                }
+            }
         };
         bar.progressProperty().bind(task.progressProperty());
         new Thread(task).start();
@@ -138,18 +143,44 @@ public class MainSceneController implements Initializable {
         preventUse();
         Task task = new Task<Void>() {
             @Override public Void call() {
-                CompressedFolderInfo CFOLDI = getFolderStructure(tfFilePath.getText());
-
-                //TODO UPDATE PROGRESS OF TASK
-
-                FileManager.ClearFile(destination);
-                writeFolder(CFOLDI,destination);
-
+                ArrayList<String> filePaths =new ArrayList<>();
+                ArrayList<String> folderPaths =new ArrayList<>();
+                getFilePaths(tfFilePath.getText(),filePaths,folderPaths);
+                byte[] data=FileManager.ReadBinaryFiles(filePaths);
+                String folderName=getFileName(tfFilePath.getText());
+                CompressionInfo CI= HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data),folderName);
+                FolderCompressionInfo FCI = new FolderCompressionInfo(CI);
+                for(String s:folderPaths){
+                    FCI.folderNames.add(getFileName(s));
+                }
+                for(String s:filePaths){
+                    FCI.fileNames.add(getFileName(s));
+                }
+                FCI.compressionTest();
+                didCompress=FCI.isCompressible;
+                if(didCompress) {
+                    CompressedFolderInfo CFOLDI = getFolderStructure(tfFilePath.getText(),FCI);
+                    FileManager.ClearFile(destination);
+                    writeHuffmanTree(FCI,destination);
+                    writeFolder(CFOLDI,destination);
+                }
                 return null;
             }
             @Override protected void succeeded() {
                 super.succeeded();
                 grantUse();
+                if(didCompress==false){
+                    lmessage.setText("Compression Rejected !!");
+                }
+
+            }
+            @Override protected void failed() {
+                super.failed();
+                grantUse();
+                if(didCompress==false){
+                    lmessage.setText("Compression Failed !!");
+                }
+
             }
         };
         bar.progressProperty().bind(task.progressProperty());
@@ -164,9 +195,10 @@ public class MainSceneController implements Initializable {
                 byte[] data=FileManager.ReadBinaryFile(tfFilePath.getText());
                 if(data[0]!=0x0f) {
                     BitSet bs=BitSet.valueOf(data);
-                    DecompressedFileInfo DFI = DecompressionHandler.DecompressFile(data,bs,true);
+                    DecompressedFileInfo DFI = DecompressionHandler.DecompressFile(data,bs);
                     String path = getFilePath(tfFilePath.getText());
                     FileManager.WriteDecompressedFile(DFI, path);
+
                 }else{
                   DecompressedFolderInfo DFOLDI = DecompressionHandler.DecompressFolder(data,0);
                   writeDecompressedFolder(DFOLDI,getFilePath(tfFilePath.getText()));
@@ -197,33 +229,27 @@ public class MainSceneController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle rb) {
     }
-    private CompressedFolderInfo getFolderStructure(String path) {
+    private void getFilePaths(String path, ArrayList<String> filePaths,ArrayList<String> folderPaths){
+        File folder = new File(path);
+        folderPaths.add(path);
+        for (final File fileEntry : folder.listFiles()) {
+            if (fileEntry.isDirectory()) {
+               getFilePaths(fileEntry.getAbsolutePath(),filePaths,folderPaths);
+            } else {
+                filePaths.add(fileEntry.getAbsolutePath());
+            }
+        }
+    }
+    private CompressedFolderInfo getFolderStructure(String path,FolderCompressionInfo FCI) {
         File folder = new File(path);
         CompressedFolderInfo CFOLDI=new CompressedFolderInfo();
         CFOLDI.folderName=getFileName(path);
         ArrayList<Thread> tArr=new ArrayList<>();
         for (final File fileEntry : folder.listFiles()) {
             if (fileEntry.isDirectory()) {
-                CFOLDI.CFOLDIs.add(getFolderStructure(fileEntry.getAbsolutePath()));
+                CFOLDI.CFOLDIs.add(getFolderStructure(fileEntry.getAbsolutePath(),FCI));
             } else {
-                nFiles++;
-
-                Task task = new Task<Void>() {
-                    @Override public Void call() {
-                        String fileName=getFileName(fileEntry.getAbsolutePath());
-                        byte[] data=FileManager.ReadBinaryFile(fileEntry.getAbsolutePath());
-                        CompressedFileInfo CFI = CompressionHandler.getCompressedFile(
-                                HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data))
-                                , data
-                                , fileName
-                                ,false
-                        );
-                        CFOLDI.CFIs.add(CFI);
-                        return null;
-                    }
-                };
-                Thread t= new Thread(task);
-                t.start();
+                Thread t=startFileCompression(fileEntry,CFOLDI,FCI);
                 tArr.add(t);
             }
         }
@@ -238,6 +264,36 @@ public class MainSceneController implements Initializable {
         return CFOLDI;
 
     }
+    private Thread startFileCompression(final File fileEntry,CompressedFolderInfo CFOLDI,FolderCompressionInfo FCI){
+        Task task = new Task<Void>() {
+            @Override public Void call() {
+                String fileName=getFileName(fileEntry.getAbsolutePath());
+                byte[] data=FileManager.ReadBinaryFile(fileEntry.getAbsolutePath());
+                CompressedFileInfo CFI=CompressionHandler.getCompressedFile(FCI.huffmanCodes,data,fileName);
+                CFOLDI.CFIs.add(CFI);
+                return null;
+            }
+        };
+        Thread t= new Thread(task);
+        t.start();
+        return t;
+    }
+
+    private void writeHuffmanTree(FolderCompressionInfo FCI,String destination){
+        byte[] headerData=new byte[1+FCI.huffmanCodes.size()*FCI.codeFormat];
+        int idx=0;
+        headerData[idx++]=(byte)0xf0;
+        for(Map.Entry<Character,String> e:FCI.huffmanCodes.entrySet()){
+            headerData[idx++]=(byte)(e.getKey()&0xff);
+            long val;
+            val=Long.parseLong(e.getValue(),2);
+            val |=(2<<(e.getValue().length()-1));
+            for(int i=0;i<FCI.codeFormat;i++){
+                headerData[idx++]=((byte)((val>>(i*8))&0xff));
+            }
+        }
+        FileManager.AppendCompressedFile(headerData,destination);
+    }
     private void writeFolder(CompressedFolderInfo  CFOLDI,String destination){
         byte[] folderHeader=getFolderHeader(CFOLDI);
         FileManager.AppendCompressedFile(folderHeader,destination);
@@ -248,7 +304,6 @@ public class MainSceneController implements Initializable {
             writeFolder(CFOLDI.CFOLDIs.get(i),destination);
         }
     }
-
     private byte[] getFolderHeader(CompressedFolderInfo  CFOLDI){
         byte[] folderHeader=new byte[4+CFOLDI.folderName.length()];
         folderHeader[0]=0x0f;
@@ -261,7 +316,6 @@ public class MainSceneController implements Initializable {
         }
         return folderHeader;
     }
-
     private String getCompressedFilePath(String path){
         String destination=path;
         if(path.contains(".")){
@@ -277,6 +331,7 @@ public class MainSceneController implements Initializable {
         bChooseFile.setDisable(true);
         bChooseFolder.setDisable(true);
         cbEdit.setDisable(true);
+        startTime=System.nanoTime();
     }
     private void grantUse(){
         bar.setVisible(false);
@@ -285,6 +340,9 @@ public class MainSceneController implements Initializable {
         bChooseFile.setDisable(false);
         bChooseFolder.setDisable(false);
         cbEdit.setDisable(false);
+        System.out.print("Execution Time: ");
+        System.out.print((System.nanoTime()-startTime)/1000000000.0);
+        System.out.print(" Seconds");
     }
 
     private String getFileName(String path){

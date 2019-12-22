@@ -1,22 +1,21 @@
 package model;
 
+import javafx.concurrent.Task;
 import javafx.scene.Parent;
 import javafx.util.Pair;
+import model.Decompression.DecompressedFileInfo;
+import model.Decompression.DecompressedFolderInfo;
 import model.Decompression.DecompressionHandler;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.PriorityQueue;
+import java.util.*;
 
 public class HuffmanCompressor {
     //the Compress Algorithm goes here it returns a table that contains Character -> binary value
-    public static HashMap<Character,String> Compress(ArrayList<Pair<Character,Long>> FrequencyArray){
+    public static CompressionInfo Compress(ArrayList<Pair<Character,Long>> frequencyArray,String fileName){
         //Convert the frequency array to a MinHeap to use it in the algorithm.
-        PriorityQueue<Node> minHeap=ConvertToHeap(FrequencyArray);
+        PriorityQueue<Node> minHeap=ConvertToHeap(frequencyArray);
         Node root=new Node(null,null,null);
-
-        int len=FrequencyArray.size()-1;
+        int len=frequencyArray.size()-1;
         //notice i will only run n-1 times because in the end i will have the root
         for(int i=0;i<len;i++){
             Node P1=minHeap.poll();
@@ -26,11 +25,25 @@ public class HuffmanCompressor {
             minHeap.add(Parent);
         }
         HashMap<Character,String> dictionary=GetBinaryTable(root);
-        System.out.println(dictionary);
-        System.out.print("Number of leaves:");
-        System.out.println(dictionary.size());
+
+        CompressionInfo CI = new CompressionInfo(frequencyArray,dictionary,fileName);
+
+        instantiateDiplay(CI);//Call to sync print function;
+
+        //next line for debugging
         //DecompressionHandler.debug=dictionary;
-        return dictionary;
+        return CI;
+    }
+    private static Thread instantiateDiplay(CompressionInfo CI){
+        Task task = new Task<Void>() {
+            @Override public Void call() {
+                InfoHandler.DisplayInfo(CI);
+                return null;
+            }
+        };
+        Thread t= new Thread(task);
+        t.start();
+        return t;
     }
     private static PriorityQueue<Node> ConvertToHeap(ArrayList<Pair<Character,Long>> FrequencyArray){
         PriorityQueue<Node> minHeap=new PriorityQueue<>(new HuffmanComparator());
@@ -59,5 +72,6 @@ public class HuffmanCompressor {
             TraverseTree(node.right,table,binaryVal+"1");
             TraverseTree(node.left,table,binaryVal+"0");
     }
+
 }
 

@@ -7,6 +7,7 @@ import model.Compression.CompressionHandler;
 import model.FileManager;
 import model.FrequencyChecker;
 import model.HuffmanCompressor;
+import model.InfoHandler;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -32,15 +33,7 @@ public class DecompressionHandler {
                     data[j]=fileData[j+offset];
                 }
                 offset+=nBytes;
-                Task task = new Task<Void>() {
-                    @Override public Void call() {
-                        DecompressedFileInfo DFI=DecompressFile(data,BitSet.valueOf(data),false);
-                        DFOLDI.DFIs.add(DFI);
-                        return null;
-                    }
-                };
-                Thread t= new Thread(task);
-                t.start();
+                Thread t=instantiateDecompression(data,DFOLDI);
                 tArr.add(t);
             }else{
                 DFOLDI.DFOLDIs.add(DecompressFolder(fileData,offset));
@@ -59,53 +52,52 @@ public class DecompressionHandler {
         DFOLDI.maxReach=offset;
         return DFOLDI;
     }
-    private static int byteReached=0;
-    public static DecompressedFileInfo DecompressFile(byte[] fileData,BitSet bs,boolean isFile){
+
+
+    private static Thread instantiateDecompression(byte[] data,DecompressedFolderInfo DFOLDI) {
+        Task task = new Task<Void>() {
+            @Override
+            public Void call() {
+                DecompressedFileInfo DFI = DecompressFile(data, BitSet.valueOf(data));
+                DFOLDI.DFIs.add(DFI);
+                return null;
+            }
+        };
+        Thread t = new Thread(task);
+        t.start();
+        return t;
+    }
+    public static DecompressedFileInfo DecompressFile(byte[] fileData,BitSet bs){
         //Note &<hexNumber> is to cast byte values avoiding the negative values.
-        int isCompressed=fileData[0]&0xff;
-        byteReached=0;
+        int compressionFormat=fileData[0]&0xff;
         String data="";//The Output String
         String fileName="";
-        int start=0;
-        if(isFile==false)start=4;
-        if(isCompressed!=0){
-            boolean doubleByte=(isCompressed==0xff);
-            short nChars=(short)((fileData[1+start]&0xff)+1);
-            long fileLength=((long)((fileData[2+start]&0xff)<<24) | (long)((fileData[3+start]&0xff)<<16) | (long)((fileData[4+start]&0xff)<<8) | (long)(fileData[5+start]&0xff));
-            short fileNameLen=(short)((fileData[6+start]&0xff)+1);
-            fileName=getFileName(fileData,fileNameLen,start);
+        int codeFormat=compressionFormat-0x0f9;//get Code fromat as 1,2,3 or 4 [Starts from 0xaf
 
-            HashMap<String,Character> huffmanTable =GetDecompressionTable(fileData,fileNameLen,bs,nChars,doubleByte,start);
+        short nChars=(short)((fileData[1]&0xff)+1);
 
-            /** FOR DEBUGGING THE HUFFMAN TREE MUST UNCOMMENT HUFFMAN COMPRESSOR EQUALITY AS WELL **/
-       /*     for(Map.Entry e:huffmanTable.entrySet()){
-                System.out.printf("%s %s %s\n",e.getValue(),e.getKey(),debug.get(e.getValue()));
-            }
-            */
-            System.out.println(huffmanTable);
-            System.out.printf("Number of Leaves:%d\n",huffmanTable.size());
+        long fileLength=((long)((fileData[2]&0xff)<<24) | (long)((fileData[3]&0xff)<<16) | (long)((fileData[4]&0xff)<<8) | (long)(fileData[5]&0xff));
 
-            int startLoc=((doubleByte?(nChars*3)+7+fileNameLen:(nChars*2)+7+fileNameLen)+start)*8;
-            int endLoc=fileData.length*8;//i can just read until i find file chars
-            data=getDecompressedData(bs,huffmanTable,doubleByte,nChars,fileLength,startLoc,endLoc);
-        }else{
-            int len=(fileData[1+start]&0xff)+1;
-            for(int i=2+start,offset=0;offset<len;offset++){
-                fileName+=(char)(fileData[i+offset]&0xff);
-            }
-            for(int i=2+len+start;i<fileData.length;i++){
-                data+=(char)(fileData[i]);
-            }
-            byteReached=4+len+fileData.length+start;
+        short fileNameLen=(short)((fileData[6]&0xff)+1);
+        fileName=getFileName(fileData,fileNameLen);
+
+        HashMap<String,Character> huffmanTable =GetDecompressionTable(fileData,fileNameLen,bs,nChars,codeFormat);
+
+        /* for debugging -> must uncomment debug equality in HuffmanCompressor
+        for(Map.Entry<String,Character> e:huffmanTable.entrySet()){
+            System.out.printf("%s %s %s\n",e.getValue(),e.getKey(),debug.get(e.getValue()));
         }
-        System.out.println(fileName);
-      //  System.out.println(data);
-        return new DecompressedFileInfo(fileName,data,byteReached);
+        */
+        int startLoc=((nChars*(codeFormat+1))+7+fileNameLen)*8;
+        int endLoc=fileData.length*8;//i can just read until i find file chars
+        data=getDecompressedData(bs,huffmanTable,fileLength,startLoc,endLoc);
+        return new DecompressedFileInfo(fileName,data);
     }
-    private static String getFileName(byte[] fileData,int fileNameLen,int start){
+
+    private static String getFileName(byte[] fileData,int fileNameLen){
         String res="";
         for(int i=0;i<fileNameLen;i++){
-            res+=(char)(fileData[7+i+start]&0xff);
+            res+=(char)(fileData[7+i]&0xff);
         }
         return res;
     }
@@ -117,26 +109,30 @@ public class DecompressionHandler {
         }
         return res;
     }
-    private static HashMap<String,Character> GetDecompressionTable(byte[] fileData,int fileNameLen,BitSet fileDataBits,int nChars,boolean doubleByte,int start){
+    private static HashMap<String,Character> GetDecompressionTable(byte[] fileData,int fileNameLen,BitSet fileDataBits,int nChars,int codeFormat){
         HashMap<String,Character> huffmanTable=new HashMap<>();
         //make the end of data depends if using Double or Single Byte data for the huffmanTable
-        int endLoc=(doubleByte?(nChars*3):(nChars*2))+6+start+fileNameLen;
-        int step=doubleByte?3:2;
-
-        for(int i=7+fileNameLen+start;i<endLoc;i+=step){
-            if(doubleByte){
-                String code=getCode(fileDataBits,(i+1)*8,8);
-                if(code.equals("NO")){
-                    code=getCode(fileDataBits,(i+2)*8,8);
-                }else{
-                    code+=getCodeDirect(fileDataBits,(i+2)*8,8);
-                }
-                huffmanTable.put(code,Character.toChars(fileData[i]&0xff)[0]);
-            }else{
-                String code=getCode(fileDataBits,(i+1)*8,8);
-                huffmanTable.put(code,Character.toChars(fileData[i]&0xff)[0]);
+        int endLoc=(nChars*(codeFormat+1))+7+fileNameLen;
+        int step=codeFormat+1;
+        String code="";
+        for(int i=7+fileNameLen;i<endLoc;i+=step){
+            int idx=1;
+            switch (codeFormat){
+                case 1:
+                    code=getCode(fileDataBits,(i+1)*8,8);
+                    break;
+                default:
+                    do{
+                        code=getCode(fileDataBits,(i+idx)*8,8);
+                        idx++;
+                    }while(code.equals("NO"));
+                    while(idx<=codeFormat){
+                        code+=getCodeDirect(fileDataBits,(i+idx)*8,8);
+                        idx++;
+                    }
+                    break;
             }
-
+            huffmanTable.put(code,Character.toChars(fileData[i]&0xff)[0]);
         }
         return huffmanTable;
     }
@@ -163,7 +159,7 @@ public class DecompressionHandler {
         }
         return code;
     }
-    private static String getDecompressedData(BitSet bs, HashMap<String,Character>  huffmanTable,boolean doubleByte,short nChars,long fileLength,int startLoc,int endLoc){
+    private static String getDecompressedData(BitSet bs, HashMap<String,Character>  huffmanTable,long fileLength,int startLoc,int endLoc){
         String res="";
         long charCounter=0;
         String codeBuffer="";
@@ -174,7 +170,6 @@ public class DecompressionHandler {
                 codeBuffer="";
                 charCounter++;
                 if (charCounter == fileLength){
-                    byteReached=(int)((i/8.0)+0.99999999);
                     break;
                 }
             }
