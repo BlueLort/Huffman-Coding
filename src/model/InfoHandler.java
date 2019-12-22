@@ -43,6 +43,7 @@ public class InfoHandler {
         }
     }
     private void showInfoGUI()throws Exception{
+        //TODO Fix Path to work in JAR File
         FXMLLoader loader = new FXMLLoader(getClass().getResource("../res/FXML/infoScene.fxml"));
         Parent root=loader.load();
         Stage s=new Stage();
