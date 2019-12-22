@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class DecompressionHandler {
     public static HashMap<Character,String> debug;
-    public static DecompressedFolderInfo DecompressFolder(byte[] fileData,int start){
+    public static DecompressedFolderInfo DecompressFolder(byte[] fileData,int start,HashMap<String,Character> huffmanTable){
         DecompressedFolderInfo DFOLDI=new DecompressedFolderInfo();
         int nFiles=(((int)fileData[1+start]<<8&0xff00)|(fileData[2+start]&0xff));
         DFOLDI.folderName=extractFolderName(fileData,start);
@@ -33,10 +33,10 @@ public class DecompressionHandler {
                     data[j]=fileData[j+offset];
                 }
                 offset+=nBytes;
-                Thread t=instantiateDecompression(data,DFOLDI);
+                Thread t=instantiateDecompression(data,DFOLDI,huffmanTable);
                 tArr.add(t);
             }else{
-                DFOLDI.DFOLDIs.add(DecompressFolder(fileData,offset));
+                DFOLDI.DFOLDIs.add(DecompressFolder(fileData,offset,huffmanTable));
                 offset=DFOLDI.DFOLDIs.get(DFOLDI.DFOLDIs.size()-1).maxReach;
             }
         }
@@ -54,11 +54,11 @@ public class DecompressionHandler {
     }
 
 
-    private static Thread instantiateDecompression(byte[] data,DecompressedFolderInfo DFOLDI) {
+    private static Thread instantiateDecompression(byte[] data,DecompressedFolderInfo DFOLDI,HashMap<String,Character> huffmanTable) {
         Task task = new Task<Void>() {
             @Override
             public Void call() {
-                DecompressedFileInfo DFI = DecompressFile(data, BitSet.valueOf(data));
+                DecompressedFileInfo DFI = DecompressFile(data, BitSet.valueOf(data),huffmanTable);
                 DFOLDI.DFIs.add(DFI);
                 return null;
             }
@@ -67,10 +67,30 @@ public class DecompressionHandler {
         t.start();
         return t;
     }
+    public static DecompressedFileInfo DecompressFile(byte[] fileData,BitSet bs,HashMap<String,Character> huffmanTable){
+        int compressionFormat=fileData[0]&0xff;
+        StringBuilder data;
+        String fileName="";
+
+        long fileLength=((long)((fileData[5]&0xff)<<24) | (long)((fileData[6]&0xff)<<16) | (long)((fileData[7]&0xff)<<8) | (long)(fileData[8]&0xff));
+
+        short fileNameLen=(short)((fileData[9]&0xff)+1);
+        fileName=getFileName(fileData,fileNameLen,10);
+
+        int startLoc=(10+fileNameLen)*8;
+        int endLoc=fileData.length*8;//i can just read until i find file chars
+
+        if(fileLength>0) {
+            data = getDecompressedData(bs, huffmanTable, fileLength, startLoc, endLoc);
+        }else{
+            data=new StringBuilder();
+        }
+        return new DecompressedFileInfo(fileName,data.toString());
+    }
     public static DecompressedFileInfo DecompressFile(byte[] fileData,BitSet bs){
         //Note &<hexNumber> is to cast byte values avoiding the negative values.
         int compressionFormat=fileData[0]&0xff;
-        String data="";//The Output String
+        StringBuilder data;
         String fileName="";
         int codeFormat=compressionFormat-0x0f9;//get Code fromat as 1,2,3 or 4 [Starts from 0xaf
 
@@ -79,7 +99,7 @@ public class DecompressionHandler {
         long fileLength=((long)((fileData[2]&0xff)<<24) | (long)((fileData[3]&0xff)<<16) | (long)((fileData[4]&0xff)<<8) | (long)(fileData[5]&0xff));
 
         short fileNameLen=(short)((fileData[6]&0xff)+1);
-        fileName=getFileName(fileData,fileNameLen);
+        fileName=getFileName(fileData,fileNameLen,7);
 
         HashMap<String,Character> huffmanTable =GetDecompressionTable(fileData,fileNameLen,bs,nChars,codeFormat);
 
@@ -90,14 +110,19 @@ public class DecompressionHandler {
         */
         int startLoc=((nChars*(codeFormat+1))+7+fileNameLen)*8;
         int endLoc=fileData.length*8;//i can just read until i find file chars
-        data=getDecompressedData(bs,huffmanTable,fileLength,startLoc,endLoc);
-        return new DecompressedFileInfo(fileName,data);
+   
+        if(fileLength>0) {
+            data = getDecompressedData(bs, huffmanTable, fileLength, startLoc, endLoc);
+        }else{
+            data=new StringBuilder();
+        }
+        return new DecompressedFileInfo(fileName,data.toString());
     }
 
-    private static String getFileName(byte[] fileData,int fileNameLen){
+    private static String getFileName(byte[] fileData,int fileNameLen,int start){
         String res="";
         for(int i=0;i<fileNameLen;i++){
-            res+=(char)(fileData[7+i]&0xff);
+            res+=(char)(fileData[start+i]&0xff);
         }
         return res;
     }
@@ -109,35 +134,50 @@ public class DecompressionHandler {
         }
         return res;
     }
+    public static HashMap<String,Character> GetFolderDecompressionTable(byte[] fileData,BitSet fileDataBits){
+        int codeFormat=(fileData[1]&0xff)-0x0f9;
+        HashMap<String,Character> huffmanTable=new HashMap<>();
+        //make the end of data depends if using Double or Single Byte data for the huffmanTable
+        int endLoc=fileData.length;
+        int step=codeFormat+1;
+        StringBuilder code;
+        for(int i=3;i<endLoc;i+=step){
+            int idx=1;
+            do{
+                code=getCode(fileDataBits,(i+idx)*8,8);
+                idx++;
+            }while(code.toString().equals("NO"));
+
+            while(idx<=codeFormat){
+                code.append(getCodeDirect(fileDataBits,(i+idx)*8,8).toString());
+                idx++;
+            }
+            huffmanTable.put(code.toString(),Character.toChars(fileData[i]&0xff)[0]);
+        }
+        return huffmanTable;
+    }
     private static HashMap<String,Character> GetDecompressionTable(byte[] fileData,int fileNameLen,BitSet fileDataBits,int nChars,int codeFormat){
         HashMap<String,Character> huffmanTable=new HashMap<>();
         //make the end of data depends if using Double or Single Byte data for the huffmanTable
         int endLoc=(nChars*(codeFormat+1))+7+fileNameLen;
         int step=codeFormat+1;
-        String code="";
+        StringBuilder code;
         for(int i=7+fileNameLen;i<endLoc;i+=step){
             int idx=1;
-            switch (codeFormat){
-                case 1:
-                    code=getCode(fileDataBits,(i+1)*8,8);
-                    break;
-                default:
-                    do{
-                        code=getCode(fileDataBits,(i+idx)*8,8);
-                        idx++;
-                    }while(code.equals("NO"));
-                    while(idx<=codeFormat){
-                        code+=getCodeDirect(fileDataBits,(i+idx)*8,8);
-                        idx++;
-                    }
-                    break;
+            do{
+                code=getCode(fileDataBits,(i+idx)*8,8);
+                idx++;
+            }while(code.toString().equals("NO"));
+            while(idx<=codeFormat){
+                code.append(getCodeDirect(fileDataBits,(i+idx)*8,8).toString());
+                idx++;
             }
-            huffmanTable.put(code,Character.toChars(fileData[i]&0xff)[0]);
+            huffmanTable.put(code.toString(),Character.toChars(fileData[i]&0xff)[0]);
         }
         return huffmanTable;
     }
-    private static String getCode(BitSet bs,int start,int range) {
-        String code = "";
+    private static StringBuilder getCode(BitSet bs,int start,int range) {
+        StringBuilder code = new StringBuilder();
         int startLoc = -1;
         for (int j = start+range-1, offset = 0; offset < range;offset++) {
             if (bs.get(j - offset)) {
@@ -146,28 +186,28 @@ public class DecompressionHandler {
                 break;
             }
         }
-        if(startLoc==-1)return "NO";
+        if(startLoc==-1)return new StringBuilder("NO");
         for (int j = startLoc, offset = 0; offset < range;offset++) {
-            code+=bs.get(j - offset)?"1":"0";
+            code.append(bs.get(j - offset)?"1":"0");
         }
         return code;
     }
-    private static String getCodeDirect(BitSet bs,int start,int range) {
-        String code = "";
+    private static StringBuilder getCodeDirect(BitSet bs,int start,int range) {
+        StringBuilder code = new StringBuilder();
         for (int j = start+range-1, offset = 0; offset < range;offset++) {
-            code+=bs.get(j-offset)?"1":"0";
+            code.append(bs.get(j-offset)?"1":"0");
         }
         return code;
     }
-    private static String getDecompressedData(BitSet bs, HashMap<String,Character>  huffmanTable,long fileLength,int startLoc,int endLoc){
-        String res="";
+    private static StringBuilder getDecompressedData(BitSet bs, HashMap<String,Character>  huffmanTable,long fileLength,int startLoc,int endLoc){
+        StringBuilder res=new StringBuilder();
         long charCounter=0;
-        String codeBuffer="";
+        StringBuilder codeBuffer=new StringBuilder();
         for(int i=startLoc;i<endLoc;i++){
-            codeBuffer+=bs.get(i)?"1":"0";
-            if (huffmanTable.containsKey(codeBuffer)) {
-                res += huffmanTable.get(codeBuffer);
-                codeBuffer="";
+            codeBuffer.append(bs.get(i)?"1":"0");
+            if (huffmanTable.containsKey(codeBuffer.toString())) {
+                res.append(huffmanTable.get(codeBuffer.toString()));
+                codeBuffer.setLength(0);
                 charCounter++;
                 if (charCounter == fileLength){
                     break;

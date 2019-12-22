@@ -64,7 +64,6 @@ public class CompressionHandler {
         ArrayList<Byte> headerInfo=new ArrayList<>();
         CompressedFileInfo CFI;
         int compressionFormat = 0x0f0;//0xfa to 0xfd
-
         headerInfo.add((byte)compressionFormat);
         //4 bytes to store number of bytes added.
         headerInfo.add((byte) (0));
@@ -169,7 +168,7 @@ public class CompressionHandler {
             long val;
             val=Long.parseLong(ite.getValue(),2);
             val |=(2<<(ite.getValue().length()-1));
-            for(int i=0;i<codeFormat;i++){
+            for(int i=codeFormat-1;i>=0;i--){
                 out.add((byte)((val>>(i*8))&0xff));
             }
         }

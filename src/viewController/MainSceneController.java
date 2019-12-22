@@ -23,10 +23,7 @@ import javax.print.attribute.standard.Finishings;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.util.*;
 
 
 public class MainSceneController implements Initializable {
@@ -193,14 +190,16 @@ public class MainSceneController implements Initializable {
         Task task = new Task<Void>() {
             @Override public Void call() {
                 byte[] data=FileManager.ReadBinaryFile(tfFilePath.getText());
-                if(data[0]!=0x0f) {
+                if((data[0]&0xff)!=0x0f0) {
                     BitSet bs=BitSet.valueOf(data);
                     DecompressedFileInfo DFI = DecompressionHandler.DecompressFile(data,bs);
                     String path = getFilePath(tfFilePath.getText());
                     FileManager.WriteDecompressedFile(DFI, path);
 
                 }else{
-                  DecompressedFolderInfo DFOLDI = DecompressionHandler.DecompressFolder(data,0);
+                  byte[] huffmanData=getHuffmanData(data);
+                  HashMap<String,Character> huffmanTable = DecompressionHandler.GetFolderDecompressionTable(huffmanData, BitSet.valueOf(huffmanData));
+                  DecompressedFolderInfo DFOLDI = DecompressionHandler.DecompressFolder(data,huffmanData.length,huffmanTable);
                   writeDecompressedFolder(DFOLDI,getFilePath(tfFilePath.getText()));
 
                 }
@@ -214,6 +213,16 @@ public class MainSceneController implements Initializable {
         bar.progressProperty().bind(task.progressProperty());
         new Thread(task).start();
     }
+    private static byte[] getHuffmanData(byte[] data){
+        int codeFormat=(data[1]&0xff)-0x0f9;
+        int nChars=(data[2]&0xff)+1;
+        byte[] arr=new byte[3+(codeFormat+1)*nChars];
+        for(int i=0;i<arr.length;i++){
+            arr[i]=data[i];
+        }
+        return arr;
+    }
+
     private void writeDecompressedFolder(DecompressedFolderInfo DFOLDI,String destination){
         String currentPath=destination+DFOLDI.folderName+'/';
         FileManager.CreateFolder(currentPath);
@@ -290,7 +299,7 @@ public class MainSceneController implements Initializable {
             long val;
             val=Long.parseLong(e.getValue(),2);
             val |=(2<<(e.getValue().length()-1));
-            for(int i=0;i<FCI.codeFormat;i++){
+            for(int i=FCI.codeFormat-1;i>=0;i--){
                 headerData[idx++]=((byte)((val>>(i*8))&0xff));
             }
         }
@@ -374,4 +383,6 @@ public class MainSceneController implements Initializable {
         File file = new File(fpath);
         return file.exists();
     }
+
+
 }
