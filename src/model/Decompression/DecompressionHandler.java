@@ -110,7 +110,7 @@ public class DecompressionHandler {
         */
         int startLoc=((nChars*(codeFormat+1))+7+fileNameLen)*8;
         int endLoc=fileData.length*8;//i can just read until i find file chars
-   
+
         if(fileLength>0) {
             data = getDecompressedData(bs, huffmanTable, fileLength, startLoc, endLoc);
         }else{

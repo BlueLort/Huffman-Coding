@@ -353,7 +353,7 @@ public class MainSceneController implements Initializable {
         cbEdit.setDisable(false);
         System.out.print("Execution Time: ");
         System.out.print((System.nanoTime()-startTime)/1000000000.0);
-        System.out.print(" Seconds");
+        System.out.println(" Seconds");
     }
 
     private String getFileName(String path){
