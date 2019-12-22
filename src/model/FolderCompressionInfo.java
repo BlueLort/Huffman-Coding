@@ -32,15 +32,15 @@ public class FolderCompressionInfo {
         counter=(long)(((double)counter/8.0)+0.999999);
 
         codeFormat=getCodeFormat(huffmanCodes);
-        long lengthCharsFiles=0;//chars of files + 1 for length storing
+        long lengthCharsFiles=0;
         for(String s:fileNames){
-            lengthCharsFiles+=(s.length()+1);
+            lengthCharsFiles+=(s.length());
         }
-        long lengthCharsFolders=0;//chars of files + 1 for length storing
+        long lengthCharsFolders=0;
         for(String s:folderNames){
-            lengthCharsFolders+=(s.length()+1);
+            lengthCharsFolders+=(s.length());
         }
-        long headerSize=(3*folderNames.size())+lengthCharsFolders+(9*fileNames.size())+lengthCharsFiles+codeFormat*huffmanCodes.size();
+        long headerSize=(4*folderNames.size())+lengthCharsFolders+(10*fileNames.size())+lengthCharsFiles+(codeFormat+1)*huffmanCodes.size()+2;
 
         isCompressible=(headerSize+counter)<freqSum;
     }

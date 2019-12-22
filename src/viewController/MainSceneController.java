@@ -280,9 +280,11 @@ public class MainSceneController implements Initializable {
     }
 
     private void writeHuffmanTree(FolderCompressionInfo FCI,String destination){
-        byte[] headerData=new byte[1+FCI.huffmanCodes.size()*FCI.codeFormat];
+        byte[] headerData=new byte[3+FCI.huffmanCodes.size()*(FCI.codeFormat+1)];
         int idx=0;
         headerData[idx++]=(byte)0xf0;
+        headerData[idx++]=(byte)((FCI.codeFormat&0xff)+0x0f9);
+        headerData[idx++]=(byte)((FCI.huffmanCodes.size()&0xff)-1);
         for(Map.Entry<Character,String> e:FCI.huffmanCodes.entrySet()){
             headerData[idx++]=(byte)(e.getKey()&0xff);
             long val;

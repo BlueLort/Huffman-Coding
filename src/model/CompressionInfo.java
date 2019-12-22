@@ -30,7 +30,7 @@ public class CompressionInfo {
         counter=(long)(((double)counter/8.0)+0.999999);
 
         codeFormat=getCodeFormat(huffmanCodes);
-        long headerSize=7+fileName.length()+codeFormat*huffmanCodes.size();
+        long headerSize=7+fileName.length()+(codeFormat+1)*huffmanCodes.size();
 
         isCompressible=(headerSize+counter)<freqSum;
     }
