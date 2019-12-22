@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="426.0" prefWidth="607.0" stylesheets="@../CSS/Style.css" xmlns="http://javafx.com/javafx/9.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="viewController.InfoSceneController">
+   <children>
+      <TableView fx:id="dataTable" layoutX="60.0" layoutY="60.0" prefHeight="281.0" prefWidth="480.0" AnchorPane.leftAnchor="60.0" AnchorPane.rightAnchor="60.0" AnchorPane.topAnchor="60.0">
+        <columns>
+          <TableColumn fx:id="charCol" editable="false" prefWidth="75.0" text="Character" />
+          <TableColumn fx:id="byteCol" editable="false" prefWidth="94.0" sortable="false" text="Byte" />
+            <TableColumn fx:id="codeCol" editable="false" prefWidth="129.0" sortable="false" text="Code" />
+            <TableColumn fx:id="newCodeCol" editable="false" prefWidth="186.0" sortable="false" text="New Code" />
+        </columns>
+      </TableView>
+      <Label layoutX="60.0" layoutY="27.0" prefHeight="26.0" prefWidth="55.0" text="Min #Bits:" />
+      <Label layoutX="304.0" layoutY="27.0" prefHeight="26.0" prefWidth="55.0" text="Max #Bits:" />
+      <Label fx:id="maxBits" layoutX="359.0" layoutY="27.0" prefHeight="26.0" prefWidth="55.0" />
+      <Label fx:id="minBits" layoutX="115.0" layoutY="27.0" prefHeight="26.0" prefWidth="55.0" />
+      <Label layoutX="60.0" layoutY="366.0" text="Execution Time:" />
+      <Label fx:id="exeTime" layoutX="155.0" layoutY="366.0" prefHeight="17.0" prefWidth="218.0" />
+      <Label fx:id="crlabel" layoutX="60.0" layoutY="383.0" text="Compression Ratio:" visible="false" />
+      <Label fx:id="compressionRatio" layoutX="170.0" layoutY="383.0" prefHeight="17.0" prefWidth="297.0" />
+      <Label fx:id="fileName" layoutX="58.0" layoutY="4.0" prefHeight="21.0" prefWidth="487.0">
+         <font>
+            <Font name="System Bold" size="15.0" />
+         </font></Label>
+      <Label layoutX="60.0" layoutY="349.0" prefHeight="17.0" prefWidth="55.0" text="#Chars:" />
+      <Label fx:id="nLeaves" layoutX="114.0" layoutY="349.0" prefHeight="17.0" prefWidth="83.0" />
+   </children>
+</AnchorPane>

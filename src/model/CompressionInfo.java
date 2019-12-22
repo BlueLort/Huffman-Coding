@@ -12,7 +12,13 @@ public class CompressionInfo {
     public HashMap<Character,String> huffmanCodes;
     public int codeFormat;
     public boolean isCompressible;
+    public int nMinBits;
+    public int nMaxBits;
+    public double compressionRatio;
 
+    public CompressionInfo(HashMap<Character,String>  huffmanCodes){
+        this.huffmanCodes=huffmanCodes;
+    }
     CompressionInfo(ArrayList<Pair<Character,Long>> frequencyArray,HashMap<Character,String>  huffmanCodes,String fileName){
         this.frequencyArray=frequencyArray;
         this.huffmanCodes=huffmanCodes;
@@ -32,9 +38,10 @@ public class CompressionInfo {
         codeFormat=getCodeFormat(huffmanCodes);
         long headerSize=7+fileName.length()+(codeFormat+1)*huffmanCodes.size();
 
+        compressionRatio=((double)freqSum)/(headerSize+counter);
         isCompressible=(headerSize+counter)<freqSum;
     }
-    private static int getCodeFormat(HashMap<Character,String> huffmanTable){
+    private int getCodeFormat(HashMap<Character,String> huffmanTable){
         int max=-1;
         int min=0x7fffffff;
 
@@ -46,8 +53,8 @@ public class CompressionInfo {
                 min=ite.getValue().toString().length();
             }
         }
-        System.out.printf("nBits min:%d , max:%d\n",min,max);
-
+        nMaxBits=max;
+        nMinBits=min;
         //supporting up to 4 bytes for codes
         return (max/8)+1;
     }

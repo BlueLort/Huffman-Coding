@@ -13,6 +13,9 @@ public class FolderCompressionInfo {
     public HashMap<Character,String> huffmanCodes;
     public int codeFormat;
     public boolean isCompressible;
+    public int nMinBits;
+    public int nMaxBits;
+    public double compressionRatio;
 
    public FolderCompressionInfo(CompressionInfo CI){
         this.frequencyArray=CI.frequencyArray;
@@ -42,9 +45,11 @@ public class FolderCompressionInfo {
         }
         long headerSize=(4*folderNames.size())+lengthCharsFolders+(10*fileNames.size())+lengthCharsFiles+(codeFormat+1)*huffmanCodes.size()+2;
 
+        compressionRatio=((double)freqSum)/(headerSize+counter);
+
         isCompressible=(headerSize+counter)<freqSum;
     }
-    private static int getCodeFormat(HashMap<Character,String> huffmanTable){
+    private int getCodeFormat(HashMap<Character,String> huffmanTable){
         int max=-1;
         int min=0x7fffffff;
 
@@ -56,7 +61,9 @@ public class FolderCompressionInfo {
                 min=ite.getValue().toString().length();
             }
         }
-        System.out.printf("nBits min:%d , max:%d\n",min,max);
+
+        nMaxBits=max;
+        nMinBits=min;
 
         //supporting up to 4 bytes for codes
         return (max/8)+1;

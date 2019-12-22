@@ -14,7 +14,7 @@ import java.util.Map;
 
 
 public class CompressionHandler {
-    /**Header DATA & FILE DATA INFORMATION
+    /**Header DATA -> File
      * -------------------------------------
      * 8 BITS COMPRESSION TYPE
      *   0xfd COMPRESSED 4 BYTES FOR CODES
@@ -23,20 +23,39 @@ public class CompressionHandler {
      *   0xfa COMPRESSED 1 BYTE FOR CODES
      *
      *
-     *   0x0f COMPRESSED AS FOLDER
-     *   0xf0 COMPRESSED AS FILE [FOLDER COMPRESSION]
-     *   0x00 HUFFMAN TREE [FOLDER COMPRESSION]
-     *
-     *
-     * <IF COMPRESSED FOR FOLDER>
-     * 32 BITS NUMBER OF BYTES ALLOCATED [ASSUMING MAX FILE IS 2^32 BITS] 0.5GB file
-     *   * </IF>
-     *
      * 8 BITS NUMBER OF CHARS IN DICTIONARY [let this be nc]
      *
      * 32 BITS ORIGINAL FILE LENGTH [BIG ENDIAN]
      *
-     * RE FOR $(nc) 8BITS <Character> 8/16BITS <Code>
+     * RE FOR $(nc) 8BITS <Character> CodeFormat BYTES <Code>
+     *
+     * 8 BITS FILE NAME LENGTH
+     *
+     * FILE NAME
+     *
+     * DATA COMPRESSED
+     *
+     */
+    /**Header DATA -> Folder
+     * -------------------------------------
+     * 8 BITS 0x00 HUFFMAN TREE
+     * 8 BITS HUFFMAN CODING FORMAT
+     * 8 BITS HUFFMAN SIZE
+     *
+     * HUFFMAN DATA
+     *
+     * 8 BITS COMPRESSION TYPE
+     *   0x0f COMPRESSED AS FOLDER
+     *   0xf0 COMPRESSED AS FILE [FOLDER COMPRESSION]
+     *
+     *
+     *if FILE
+     *  32 BITS NUMBER OF BYTES ALLOCATED [ASSUMING MAX FILE IS 2^32 BITS] 0.5GB file
+     *end if
+     *
+     *
+     * 32 BITS ORIGINAL FILE LENGTH [BIG ENDIAN]
+     *
      *
      * 8 BITS FILE NAME LENGTH
      *

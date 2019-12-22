@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DecompressionHandler {
-    public static HashMap<Character,String> debug;
     public static DecompressedFolderInfo DecompressFolder(byte[] fileData,int start,HashMap<String,Character> huffmanTable){
         DecompressedFolderInfo DFOLDI=new DecompressedFolderInfo();
         int nFiles=(((int)fileData[1+start]<<8&0xff00)|(fileData[2+start]&0xff));
@@ -88,6 +87,7 @@ public class DecompressionHandler {
         return new DecompressedFileInfo(fileName,data.toString());
     }
     public static DecompressedFileInfo DecompressFile(byte[] fileData,BitSet bs){
+        DecompressedFileInfo DFI;
         //Note &<hexNumber> is to cast byte values avoiding the negative values.
         int compressionFormat=fileData[0]&0xff;
         StringBuilder data;
@@ -103,11 +103,7 @@ public class DecompressionHandler {
 
         HashMap<String,Character> huffmanTable =GetDecompressionTable(fileData,fileNameLen,bs,nChars,codeFormat);
 
-        /* for debugging -> must uncomment debug equality in HuffmanCompressor
-        for(Map.Entry<String,Character> e:huffmanTable.entrySet()){
-            System.out.printf("%s %s %s\n",e.getValue(),e.getKey(),debug.get(e.getValue()));
-        }
-        */
+
         int startLoc=((nChars*(codeFormat+1))+7+fileNameLen)*8;
         int endLoc=fileData.length*8;//i can just read until i find file chars
 
@@ -116,7 +112,9 @@ public class DecompressionHandler {
         }else{
             data=new StringBuilder();
         }
-        return new DecompressedFileInfo(fileName,data.toString());
+        DFI=new DecompressedFileInfo(fileName,data.toString());
+        DFI.decompressedMap=huffmanTable;
+        return DFI;
     }
 
     private static String getFileName(byte[] fileData,int fileNameLen,int start){

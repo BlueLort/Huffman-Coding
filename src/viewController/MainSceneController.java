@@ -1,7 +1,5 @@
 package viewController;
 
-import javafx.beans.property.ReadOnlyDoubleProperty;
-import javafx.concurrent.Worker;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -9,7 +7,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.util.Pair;
 import model.*;
 import model.Compression.CompressedFileInfo;
 import model.Compression.CompressedFolderInfo;
@@ -18,8 +15,6 @@ import model.Decompression.DecompressedFileInfo;
 import model.Decompression.DecompressedFolderInfo;
 import model.Decompression.DecompressionHandler;
 import javafx.concurrent.Task;
-
-import javax.print.attribute.standard.Finishings;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
@@ -90,16 +85,21 @@ public class MainSceneController implements Initializable {
         boolean isFile=isFile(tfFilePath.getText());
         lmessage.setText("");
         if(exists) {
+            success=false;
             String destination=getCompressedFilePath(tfFilePath.getText());
             if(isFile) {
                 compressFileTask(destination);
             }else{
                 compressFolderTask(destination);
             }
+        }else{
+            lmessage.setText("Compression Failed !!");
         }
 
     }
     private boolean didCompress=true;
+    private InfoHandler IH;
+    private boolean success=false;
     private void compressFileTask(String destination){
         preventUse();
         Task task = new Task<Void>() {
@@ -109,6 +109,7 @@ public class MainSceneController implements Initializable {
                 CompressionInfo CI= HuffmanCompressor.Compress(FrequencyChecker.GetFrequency(data),fileName);
                 CI.compressionTest();
                 didCompress=CI.isCompressible;
+                IH=new InfoHandler(CI);
                 if(didCompress) {
                     CompressedFileInfo CFI = CompressionHandler.getCompressedFile(
                             CI
@@ -120,6 +121,7 @@ public class MainSceneController implements Initializable {
             }
             @Override protected void succeeded() {
                 super.succeeded();
+                success=true;
                 grantUse();
                 if(didCompress==false){
                     lmessage.setText("Compression Rejected !!");
@@ -154,6 +156,10 @@ public class MainSceneController implements Initializable {
                     FCI.fileNames.add(getFileName(s));
                 }
                 FCI.compressionTest();
+                CI.nMaxBits=FCI.nMaxBits;
+                CI.nMinBits=FCI.nMinBits;
+                CI.compressionRatio=FCI.compressionRatio;
+                IH=new InfoHandler(CI);
                 didCompress=FCI.isCompressible;
                 if(didCompress) {
                     CompressedFolderInfo CFOLDI = getFolderStructure(tfFilePath.getText(),FCI);
@@ -165,6 +171,7 @@ public class MainSceneController implements Initializable {
             }
             @Override protected void succeeded() {
                 super.succeeded();
+                success=true;
                 grantUse();
                 if(didCompress==false){
                     lmessage.setText("Compression Rejected !!");
@@ -185,33 +192,57 @@ public class MainSceneController implements Initializable {
     }
     @FXML
     private void decompressOnAction(){
+
         lmessage.setText("");
-        preventUse();
-        Task task = new Task<Void>() {
-            @Override public Void call() {
-                byte[] data=FileManager.ReadBinaryFile(tfFilePath.getText());
-                if((data[0]&0xff)!=0x0f0) {
-                    BitSet bs=BitSet.valueOf(data);
-                    DecompressedFileInfo DFI = DecompressionHandler.DecompressFile(data,bs);
-                    String path = getFilePath(tfFilePath.getText());
-                    FileManager.WriteDecompressedFile(DFI, path);
+        boolean exists=exists(tfFilePath.getText());
+        boolean isFile=isFile(tfFilePath.getText());
+        if(exists&&isFile) {
+            success=false;
+            preventUse();
+            Task task = new Task<Void>() {
+                @Override
+                public Void call() {
+                    byte[] data = FileManager.ReadBinaryFile(tfFilePath.getText());
+                    if ((data[0] & 0xff) != 0x0f0) {
+                        BitSet bs = BitSet.valueOf(data);
+                        DecompressedFileInfo DFI = DecompressionHandler.DecompressFile(data, bs);
+                        CompressionInfo CI = getCIFromReversedMap(DFI.decompressedMap);
+                        CI.fileName = getFileName(tfFilePath.getText());
+                        IH = new InfoHandler(CI);
+                        String path = getFilePath(tfFilePath.getText());
+                        FileManager.WriteDecompressedFile(DFI, path);
 
-                }else{
-                  byte[] huffmanData=getHuffmanData(data);
-                  HashMap<String,Character> huffmanTable = DecompressionHandler.GetFolderDecompressionTable(huffmanData, BitSet.valueOf(huffmanData));
-                  DecompressedFolderInfo DFOLDI = DecompressionHandler.DecompressFolder(data,huffmanData.length,huffmanTable);
-                  writeDecompressedFolder(DFOLDI,getFilePath(tfFilePath.getText()));
+                    } else {
+                        byte[] huffmanData = getHuffmanData(data);
+                        HashMap<String, Character> huffmanTable = DecompressionHandler.GetFolderDecompressionTable(huffmanData, BitSet.valueOf(huffmanData));
+                        CompressionInfo CI = getCIFromReversedMap(huffmanTable);
+                        CI.fileName = getFileName(tfFilePath.getText());
+                        IH = new InfoHandler(CI);
+                        DecompressedFolderInfo DFOLDI = DecompressionHandler.DecompressFolder(data, huffmanData.length, huffmanTable);
+                        writeDecompressedFolder(DFOLDI, getFilePath(tfFilePath.getText()));
 
+                    }
+                    return null;
                 }
-                return null;
-            }
-            @Override protected void succeeded() {
-                super.succeeded();
-                grantUse();
-            }
-        };
-        bar.progressProperty().bind(task.progressProperty());
-        new Thread(task).start();
+
+                @Override
+                protected void succeeded() {
+                    super.succeeded();
+                    success=true;
+                    grantUse();
+                }
+                @Override
+                protected void failed() {
+                    super.failed();
+                    grantUse();
+                    lmessage.setText("Deompression Failed !!");
+                }
+            };
+            bar.progressProperty().bind(task.progressProperty());
+            new Thread(task).start();
+        }else{
+            lmessage.setText("Decompression Failed !!");
+        }
     }
     private static byte[] getHuffmanData(byte[] data){
         int codeFormat=(data[1]&0xff)-0x0f9;
@@ -237,7 +268,10 @@ public class MainSceneController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
+
     }
+
+
     private void getFilePaths(String path, ArrayList<String> filePaths,ArrayList<String> folderPaths){
         File folder = new File(path);
         folderPaths.add(path);
@@ -351,9 +385,7 @@ public class MainSceneController implements Initializable {
         bChooseFile.setDisable(false);
         bChooseFolder.setDisable(false);
         cbEdit.setDisable(false);
-        System.out.print("Execution Time: ");
-        System.out.print((System.nanoTime()-startTime)/1000000000.0);
-        System.out.println(" Seconds");
+        if(success)IH.DisplayInfo((System.nanoTime()-startTime)/1000000000.0);
     }
 
     private String getFileName(String path){
@@ -384,5 +416,26 @@ public class MainSceneController implements Initializable {
         return file.exists();
     }
 
+    private CompressionInfo getCIFromReversedMap( HashMap<String,Character> decompressedMap){
+        HashMap<Character,String> huffmanTable=new HashMap<>();
+        int min=0x7fffffff;
+        int max=-1;
+        for(Map.Entry<String,Character> e:decompressedMap.entrySet()){
+            huffmanTable.put(e.getValue(),e.getKey());
+            if(max<e.getKey().length()){
+                max=e.getKey().length();
+            }
+            if(min>e.getKey().length()){
+                min=e.getKey().length();
+            }
+        }
 
+        CompressionInfo CI=new CompressionInfo(huffmanTable);
+        CI.nMinBits=min;
+        CI.nMaxBits=max;
+        CI.compressionRatio=-1;
+
+        return CI;
+
+    }
 }

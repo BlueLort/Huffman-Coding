@@ -28,22 +28,7 @@ public class HuffmanCompressor {
 
         CompressionInfo CI = new CompressionInfo(frequencyArray,dictionary,fileName);
 
-        instantiateDiplay(CI);//Call to sync print function;
-
-        //next line for debugging
-        //DecompressionHandler.debug=dictionary;
         return CI;
-    }
-    private static Thread instantiateDiplay(CompressionInfo CI){
-        Task task = new Task<Void>() {
-            @Override public Void call() {
-                InfoHandler.DisplayInfo(CI);
-                return null;
-            }
-        };
-        Thread t= new Thread(task);
-        t.start();
-        return t;
     }
     private static PriorityQueue<Node> ConvertToHeap(ArrayList<Pair<Character,Long>> FrequencyArray){
         PriorityQueue<Node> minHeap=new PriorityQueue<>(new HuffmanComparator());
