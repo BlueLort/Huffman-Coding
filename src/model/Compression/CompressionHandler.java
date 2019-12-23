@@ -25,20 +25,20 @@ public class CompressionHandler {
      *
      * 8 BITS NUMBER OF CHARS IN DICTIONARY [let this be nc]
      *
-     * 32 BITS ORIGINAL FILE LENGTH [BIG ENDIAN]
-     *
-     * RE FOR $(nc) 8BITS <Character> CodeFormat BYTES <Code>
+     * 32 BITS ORIGINAL FILE LENGTH
      *
      * 8 BITS FILE NAME LENGTH
      *
      * FILE NAME
+     *
+     * RE FOR $(nc) 8BITS <Character> CodeFormat BYTES <Code>
      *
      * DATA COMPRESSED
      *
      */
     /**Header DATA -> Folder
      * -------------------------------------
-     * 8 BITS 0x00 HUFFMAN TREE
+     * 8 BITS 0xf0 HUFFMAN TREE
      * 8 BITS HUFFMAN CODING FORMAT
      * 8 BITS HUFFMAN SIZE
      *
@@ -48,14 +48,11 @@ public class CompressionHandler {
      *   0x0f COMPRESSED AS FOLDER
      *   0xf0 COMPRESSED AS FILE [FOLDER COMPRESSION]
      *
-     *
      *if FILE
      *  32 BITS NUMBER OF BYTES ALLOCATED [ASSUMING MAX FILE IS 2^32 BITS] 0.5GB file
      *end if
      *
-     *
      * 32 BITS ORIGINAL FILE LENGTH [BIG ENDIAN]
-     *
      *
      * 8 BITS FILE NAME LENGTH
      *
@@ -79,7 +76,6 @@ public class CompressionHandler {
             ,byte[] input
             , String fileName
     ) {
-
         ArrayList<Byte> headerInfo=new ArrayList<>();
         CompressedFileInfo CFI;
         int compressionFormat = 0x0f0;//0xfa to 0xfd
@@ -206,7 +202,6 @@ public class CompressionHandler {
                     bs.set(bitIndex);
                 bitIndex++;
             }
-
         }
         return bitIndex;
     }
