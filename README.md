@@ -1,6 +1,5 @@
 # Huffman-Coding
   Using Huffman Coding to compress Files & Folders.
-   - Accepts only files that can be compressed.
    - Multithreaded ~freeze on processing~;Faster folder compression & decompression.
    - Easy to debug using a GUI window to display coding information for compression and decompression
    
